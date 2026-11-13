@@ -61,10 +61,7 @@ Extract the original CIFAR-100 Python archives:
     meta
 ```
 
-```bash
-python prepare_data.py --dataset cifar100lt --root /path/to/cifar-100-python \
-    --output splits/cifar100lt_if100_seed42.json --imb-factor 100 --seed 42 --val-ratio 0.1
-```
+
 
 The original CIFAR test set stays untouched. The training pool is subsampled exponentially; the validation pool is taken from the selected training pool.
 
@@ -82,15 +79,6 @@ Folder layout with class names as directories:
 
 Alternatively supply **existing** `train/val/test/class_name/*.jpg` directories, which will be preserved. If not already split, the script builds seeded stratified splits (72:8:20).
 
-```bash
-python prepare_data.py --dataset folder --root /path/to/PlantWildV2 \
-    --output splits/plantwild_v2_seed42.json --seed 42
-
-python prepare_data.py --dataset folder --root /path/to/DLCPD25 \
-    --output splits/dlcpd25_seed42.json --seed 42
-```
-
-**Important:** This script discovers classes from the actual folder. Check the class count and preserve the exact manuscript protocol; the name of a dataset alone does not identify a unique local split.
 
 ## 4. Train RAFA or the baseline
 
@@ -105,34 +93,13 @@ python train.py --manifest splits/cifar100lt_if100_seed42.json \
     --method ce --variant rafa --backbone resnet18 \
     --pretrained --epochs 50 --batch-size 16 --output runs/ce_rafa
 
-# Balanced Softmax / Balanced Contrastive Learning
-python train.py --manifest splits/cifar100lt_if100_seed42.json \
-    --method bs --variant rafa --pretrained --output runs/bs_rafa
-python train.py --manifest splits/cifar100lt_if100_seed42.json \
-    --method bcl --variant rafa --pretrained --output runs/bcl_rafa
-```
 
 Other integrated modes: `bbn`, `ride`, `dbm`, `h2t` (see limitations below). Backbones: `resnet18`, `resnet34`, `resnet50`, `convnext_tiny`, `vit_b_16`, `swin_t`. TorchVision ViT uses image size 224.
 
 Training uses AdamW + cosine learning-rate scheduling. Default epochs: 50; default LR: `1e-4` (ViT: `2e-5`), weight decay `1e-4`; seed 42. Model weights and metrics are saved to the supplied run folder.
 
-## 5. Paired comparison for multiple methods/backbones/seeds
 
-```bash
-# CE/BS/BCL paired experiments on ResNet-18 with independent seeds
-python compare.py --manifest splits/cifar100lt_if100_seed42.json \
-    --methods ce,bs,bcl --backbones resnet18 --seeds 42,43,44 \
-    --output runs/cifar_baselines --pretrained --epochs 50
-
-# Adapted expert / modern-method integrations (READ SCOPE NOTES FIRST)
-python compare.py --manifest splits/plantwild_v2_seed42.json \
-    --methods bbn,ride,dbm,h2t --backbones resnet18 \
-    --seeds 42 --output runs/plantwild_experiments --pretrained
-```
-
-The latter group contains **reference integrations** and is not interchangeable with the exact training code used to obtain reported baseline paper metrics. In particular, the `dbm` and `h2t` modules are **approximate research examples**, not author-exact reimplementations. Replace them with your original method scripts for exact reproduction.
-
-## 6. Evaluate and analyze
+## 5. Evaluate and analyze
 
 ```bash
 python evaluate.py --checkpoint runs/ce_rafa/best.pth \
@@ -164,78 +131,3 @@ runs/<experiment>/
         predictions.csv
 ```
 
-## 7. Mean ± standard deviation (REAL runs only)
-
-```bash
-python scripts/aggregate_seeds.py --runs runs/cifar_baselines \
-    --min-seeds 3 --output runs/cifar_mean_sd.csv
-```
-
-This script aggregates **actual independent seed runs**, using sample standard deviation (`ddof=1`). The script does not invent any SD values. Recalculate the mean and gain based on real repeated runs; previous illustrative SD tables should **not** be posted as measurements.
-
-## 8. Code layout
-
-```text
-rafa/
-    model.py            # The paper's core FC-SRR + gated low-rank adapter
-    ensemble.py         # Project-adapted BBN/RIDE shared expert architectures
-    variants.py         # Reference DBM/H2T integrations (not author exact)
-    losses.py           # Balanced Softmax, Balanced Contrastive Learning
-    data.py             # Reproducible CIFAR100-LT and natural ImageFolder splits
-    metrics.py          # Many/Medium/Few and Macro-F1/accuracy
-    utils.py
-prepare_data.py         # Create a frozen manifest
-train.py                # Train baseline or +RAFA
-compare.py              # Paired comparisons
-evaluate.py             # Evaluate checkpoints
-scripts/
-    aggregate_seeds.py
-    profile_model.py
-    router_diagnostics.py
-tests/                   # Unit and smoke tests
-configs/                 # Reference settings
-```
-
-## 9. Notes on research integrity
-
-- Never use test labels to compute rarity, gate values, or update the network.
-- Do not claim that `dbm_style_loss` or reference `H2TVariant` reproduces the original DBM/H2T published algorithms; the original specialized source code must be integrated for a strict reproduction.
-- Store original seed, split and exact training recipe alongside all published results.
-- When publishing benchmark tables, use genuine training-run means and measured standard deviations; do not copy synthetic placeholder SDs.
-- No dataset files or trained weights are shipped.
-
-## Citation
-
-If you use this code, please cite the associated RAFA paper after its official publication. A BibTeX entry can be added after the paper receives stable bibliographic information.
-
-## 10. Component ablation entry points
-
-All ablations share the full RAFA network class and differ only in the
-specified training/forward switches; these are code-ready experimental
-configurations, not a claim that historical Table 4 values have been rerun:
-
-```bash
-# Full RAFA
-python train.py --manifest splits/cifar100lt_if100_seed42.json --method ce --variant rafa --ablation full --output runs/ablation/full
-
-# Router-only supervision, no feature correction
-python train.py --manifest splits/cifar100lt_if100_seed42.json --method ce --variant rafa --ablation router_only --output runs/ablation/router_only
-
-# Ungated or global-gated adapter without router auxiliary objective
-python train.py --manifest splits/cifar100lt_if100_seed42.json --method ce --variant rafa --ablation ungated_adapter --output runs/ablation/ungated
-python train.py --manifest splits/cifar100lt_if100_seed42.json --method ce --variant rafa --ablation global_gated --output runs/ablation/global_gate
-
-# Disable adaptive gating (retain router supervision); disable auxiliary loss
-python train.py --manifest splits/cifar100lt_if100_seed42.json --method ce --variant rafa --ablation no_gating --output runs/ablation/no_gate
-python train.py --manifest splits/cifar100lt_if100_seed42.json --method ce --variant rafa --ablation no_aux --output runs/ablation/no_aux
-
-# Hard vs soft router (training intervention)
-python train.py --manifest splits/cifar100lt_if100_seed42.json --method ce --variant rafa --ablation hard_router --output runs/ablation/hard_router
-```
-
-Rank, temperature and auxiliary loss weight can also be varied with `--rank`,
-`--router-temperature` and `--aux-weight`.
-
-The reference implementation of a gate-off / ungated configuration keeps the
-unused router weights allocated for controlled architecture toggles. For
-parameter-matched comparisons, verify active and trainable parameter counts.
