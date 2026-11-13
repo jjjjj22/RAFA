@@ -2,10 +2,6 @@
 
 **A lightweight, plug-and-play feature adapter for CNN and Transformer classifiers.**
 
-> **Release status:** Research-code consolidation of the RAFA core and available project scripts. A running pipeline is provided for training, evaluation, paired comparisons and diagnostics. The reconstructed baseline integrations are **not guaranteed to reproduce the published paper numbers**. See [implementation scope](docs/IMPLEMENTATION_SCOPE.md) before citing benchmark results.
-
-中文使用说明：[README_zh.md](README_zh.md).
-
 ## 1. Architecture
 
 For backbone feature \(z\in\mathbb R^D\), the Feature-conditioned Soft Rarity Router (FC-SRR) uses **train-only** class frequencies and predictions:
