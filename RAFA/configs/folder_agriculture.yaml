@@ -1,0 +1,18 @@
+# For DLCPD-25 and PlantWild v2: images under root/class_name/*.jpg
+# or already split root/train|val|test/class_name/*.jpg
+train_fraction: 0.72
+validation_fraction: 0.08
+test_fraction: 0.20
+seed: 42
+backbone: resnet18
+image_size: 224
+epochs: 50
+optimizer: AdamW
+learning_rate: 0.0001
+weight_decay: 0.0001
+batch_size: 16
+scheduler: cosine
+rafa_rank: 16
+router_temperature: 1.0
+auxiliary_router_loss_weight: 0.1
+shot_grouping: knee

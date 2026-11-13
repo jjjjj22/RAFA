@@ -1,0 +1,1 @@
+This project package does not automatically assign a license. The repository owner should review third-party dependencies, dataset conditions and any copied/adapted implementation obligations and select an appropriate GitHub license before public release.
